@@ -1,5 +1,7 @@
 FROM continuumio/miniconda3:23.5.2-0
 
+COPY ./env.yml env.yml
+
 RUN conda env create -n osr_api -f env.yml
 SHELL ["conda", "run", "-n", "osr_api", "/bin/bash", "-c"]
 
