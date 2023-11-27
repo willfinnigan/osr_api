@@ -1,3 +1,7 @@
 fastapi
 python-multipart
 MolScribe==1.1.1
+pdf2image
+matplotlib
+ipython
+numpy==1.23.5
