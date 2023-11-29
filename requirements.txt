@@ -5,4 +5,5 @@ MolScribe==1.1.1
 pdf2image
 matplotlib
 ipython
+opencv-python-headless
 numpy==1.23.5
