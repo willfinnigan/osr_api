@@ -1,25 +1,26 @@
-import json
-import shutil
 from pathlib import Path
 
-import uvicorn as uvicorn
-from DECIMER import predict_SMILES
-from PIL import Image
-from fastapi import FastAPI, APIRouter, Request
-from decimer_segmentation import segment_chemical_structures_from_file
+import uvicorn
+from fastapi import FastAPI, Request
 from pydantic import BaseModel
+from DECIMER import predict_SMILES
+from decimer_segmentation import segment_chemical_structures_from_file
+from PIL import Image
 
 app = FastAPI()
-router = APIRouter()
 
 filestore = f"{Path(__file__).parents[0]}/filestore"
+
+@app.get("/")
+async def root():
+    return {"message": "Hello World"}
 
 class ImageData(BaseModel):
     filename: str
     paper_id: str
     osr_type: str = 'decimer'
 
-@router.post("/process_image")
+@app.post("/process_image")
 async def process_image(request: Request, image_data: ImageData):
     file_types = ['.png', '.jpeg', '.PNG', '.JPEG', '.jpg', '.JPG']
 
@@ -44,7 +45,7 @@ async def process_image(request: Request, image_data: ImageData):
     return {'status': 'success',
             'smi': smi}
 
-@router.post("/segment_images_from_file")
+@app.post("/segment_images_from_file")
 async def decimer_segment(request: Request, image_data: ImageData):
     file_types = ['.png', '.jpeg', '.PNG', '.JPEG', '.jpg', '.JPG', '.pdf', '.PDF']
 
@@ -86,10 +87,5 @@ async def decimer_segment(request: Request, image_data: ImageData):
             'filepaths': saved_filepaths,
             'smis': smis}
 
-
-app.include_router(router)
-
-
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8080)
-
