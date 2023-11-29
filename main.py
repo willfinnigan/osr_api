@@ -4,74 +4,90 @@ from pathlib import Path
 
 import uvicorn as uvicorn
 from DECIMER import predict_SMILES
-from fastapi import FastAPI, UploadFile, File
+from PIL import Image
+from fastapi import FastAPI, APIRouter, Request
 from decimer_segmentation import segment_chemical_structures_from_file
+from pydantic import BaseModel
 
 app = FastAPI()
+router = APIRouter()
 
-filestore = f"{Path(__file__).parents[0]}/'filestore"
+filestore = f"{Path(__file__).parents[0]}/filestore"
 
-@app.get("/")
-def read_root():
-    return {"Hello": "World"}
+class ImageData(BaseModel):
+    filename: str
+    paper_id: str
+    osr_type: str = 'decimer'
 
-
-@app.post("/process_image")
-def process_image(image: UploadFile = File(...), osr_type: str = 'decimer'):
+@router.post("/process_image")
+async def process_image(request: Request, image_data: ImageData):
     file_types = ['.png', '.jpeg', '.PNG', '.JPEG', '.jpg', '.JPG']
 
-    if not Path(image.filename).suffix in file_types:
+    filepath = f"{filestore}/{image_data.paper_id}/{image_data.filename}"
+
+    if not Path(filepath).suffix in file_types:
         return {'status': 'error',
                 'msg': 'file type not allowed'}
 
-    # save image to work on it
-    with open(image.filename, "wb") as buffer:
-        shutil.copyfileobj(image.file, buffer)
-
-    # check it saved ok
-    if not Path(image.filename).exists():
+    # check file exists
+    if not Path(filepath).exists():
         return {'status': 'error',
                 'msg': 'file does not exist'}
 
     # run osr
-    if osr_type == 'decimer':
-        smi = predict_SMILES(image.filename)
+    if image_data.osr_type == 'decimer':
+        smi = predict_SMILES(filepath)
     else:
         return {'status': 'error',
                 'msg': 'osr type not recognised'}
 
-    # remove image
-    Path(image.filename).unlink()
-
     return {'status': 'success',
             'smi': smi}
 
-@app.post("/segment_images_from_file")
-def segment_images_from_file(image: UploadFile = File(...)):
+@router.post("/segment_images_from_file")
+async def decimer_segment(request: Request, image_data: ImageData):
     file_types = ['.png', '.jpeg', '.PNG', '.JPEG', '.jpg', '.JPG', '.pdf', '.PDF']
 
-    if not Path(image.filename).suffix in file_types:
+    filepath = f"{filestore}/{image_data.paper_id}/{image_data.filename}"
+
+    if not Path(filepath).suffix in file_types:
         return {'status': 'error',
                 'msg': 'file type not allowed'}
 
-    # save image to work on it
-    print(image.filename)
-    with open(image.filename, "wb") as buffer:
-        shutil.copyfileobj(image.file, buffer)
-
-    # check it saved ok
-    if not Path(image.filename).exists():
+    # check file exists
+    if not Path(filepath).exists():
         return {'status': 'error',
                 'msg': 'file does not exist'}
 
-    segments = segment_chemical_structures_from_file(image.filename, expand=True)
-    segments_json = json.dumps([s.tolist() for s in segments])
+    segments = segment_chemical_structures_from_file(filepath, expand=True)
 
-    # remove image
-    Path(image.filename).unlink()
+    # make folder to save segmented images to
+    filename_no_suffix = Path(image_data.filename).stem
+    new_folder = f"{filename_no_suffix}_decimer_segmented_images"
+    save_folder = f"{filestore}/{image_data.paper_id}/{new_folder}"
+    Path(save_folder).mkdir(parents=True, exist_ok=True)
+
+    # save segmented images
+    saved_filepaths = []
+    smis = []
+    for i, segment in enumerate(segments):
+        fullpath = f"{filestore}/{image_data.paper_id}/{new_folder}/{i}.png"
+        shortpath = f"{new_folder}/{i}.png"
+
+        img = Image.fromarray(segment)
+        img.save(fullpath)
+        saved_filepaths.append(shortpath)
+
+        if image_data.osr_type == 'decimer':
+            smi = predict_SMILES(fullpath)
+            smis.append(smi)
 
     return {'status': 'success',
-            'segments': segments_json}
+            'filepaths': saved_filepaths,
+            'smis': smis}
+
+
+app.include_router(router)
 
 
 if __name__ == "__main__":

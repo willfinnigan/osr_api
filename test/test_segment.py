@@ -4,12 +4,10 @@ import requests
 
 url = 'http://0.0.0.0:8080/segment_images_from_file'
 
-# this dir
-current_dur = str(Path(__file__).parents[0])
-filepath = f"{current_dur}/panel.png"
-
-files = {'image': open(filepath, 'rb')}
-
-r = requests.post(url, files=files)
-
+data = {'paper_id': 'test_paper', 'filename': 'select_panel.png', 'osr_type': 'decimer'}
+r = requests.post(url, json=data)
 print(r.text)
+
+#data = {'paper_id': 'test_paper', 'filename': 'main.pdf', 'osr_type': 'decimer'}
+#r = requests.post(url, json=data)
+#print(r.text)

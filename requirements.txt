@@ -1,4 +1,5 @@
 fastapi
+uvicorn
 python-multipart
 MolScribe==1.1.1
 pdf2image
