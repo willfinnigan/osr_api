@@ -1,12 +1,19 @@
 from pathlib import Path
+
+import pystow
+import torch
 import uvicorn
 from fastapi import FastAPI, Request
+from molscribe import MolScribe
 from pydantic import BaseModel
 from PIL import Image
 from DECIMER import predict_SMILES
 from decimer_segmentation import segment_chemical_structures_from_file
 
 app = FastAPI()
+
+molscribe_model_path = pystow.join("MOLSCRIBE")
+molscribe_model = MolScribe(f'{molscribe_model_path}/swin_base_char_aux_1m.pth', device=torch.device('cpu'))
 
 filestore = f"{Path(__file__).parents[0]}/filestore"
 
@@ -37,6 +44,10 @@ async def process_image(request: Request, image_data: ImageData):
     # run osr
     if image_data.osr_type == 'decimer':
         smi = predict_SMILES(filepath)
+    elif image_data.osr_type == 'molscribe':
+        output = molscribe_model.predict_image_file(filepath, return_atoms_bonds=True, return_confidence=False)
+        smi = output['smiles']
+
     else:
         return {'status': 'error',
                 'msg': 'osr type not recognised'}
