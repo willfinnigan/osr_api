@@ -3,9 +3,6 @@ FROM python:3.9-slim
 
 RUN apt-get update && apt-get install git libgl1-mesa-glx ffmpeg libsm6 libxext6  -y
 
-# Set the working directory inside the container
-WORKDIR /app
-
 # Copy the requirements file to the working directory
 COPY requirements.txt .
 
@@ -21,6 +18,8 @@ COPY . .
 
 # Expose the port on which the application will run
 EXPOSE 8080
+
+ENV PYSTOW_HOME="modal"
 
 # Run the FastAPI application using uvicorn server
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]

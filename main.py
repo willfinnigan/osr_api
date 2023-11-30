@@ -1,11 +1,10 @@
 from pathlib import Path
-
 import uvicorn
 from fastapi import FastAPI, Request
 from pydantic import BaseModel
+from PIL import Image
 from DECIMER import predict_SMILES
 from decimer_segmentation import segment_chemical_structures_from_file
-from PIL import Image
 
 app = FastAPI()
 
@@ -24,7 +23,7 @@ class ImageData(BaseModel):
 async def process_image(request: Request, image_data: ImageData):
     file_types = ['.png', '.jpeg', '.PNG', '.JPEG', '.jpg', '.JPG']
 
-    filepath = f"{filestore}/{image_data.paper_id}/{image_data.filename}"
+    filepath = f"{filestore}/{image_data.paper_id}/molecule_images/{image_data.filename}"
 
     if not Path(filepath).suffix in file_types:
         return {'status': 'error',
@@ -47,9 +46,10 @@ async def process_image(request: Request, image_data: ImageData):
 
 @app.post("/segment_images_from_file")
 async def decimer_segment(request: Request, image_data: ImageData):
+
     file_types = ['.png', '.jpeg', '.PNG', '.JPEG', '.jpg', '.JPG', '.pdf', '.PDF']
 
-    filepath = f"{filestore}/{image_data.paper_id}/{image_data.filename}"
+    filepath = f"{filestore}/{image_data.paper_id}/molecule_images/{image_data.filename}"
 
     if not Path(filepath).suffix in file_types:
         return {'status': 'error',
