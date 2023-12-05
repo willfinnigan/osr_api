@@ -10,7 +10,8 @@ class MolScribeModel():
         if modal_path is not None:
             self.molscribe_model_path = modal_path
         else:
-            self.molscribe_model_path = pystow.join("MOLSCRIBE")
+            pystow_path = pystow.join('MOLSCRIBE')
+            self.molscribe_model_path = f"{pystow_path}/swin_base_char_aux_1m.pth"
 
     def load_model(self):
         if self.model is None:
