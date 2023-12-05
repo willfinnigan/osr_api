@@ -1,19 +1,13 @@
 from pathlib import Path
 
-import pystow
-import torch
 import uvicorn
 from fastapi import FastAPI, Request
-from molscribe import MolScribe
 from pydantic import BaseModel
 from PIL import Image
-from DECIMER import predict_SMILES
-from decimer_segmentation import segment_chemical_structures_from_file
+
+from models import decimer_model, molscribe_model
 
 app = FastAPI()
-
-molscribe_model_path = pystow.join("MOLSCRIBE")
-molscribe_model = MolScribe(f'{molscribe_model_path}/swin_base_char_aux_1m.pth', device=torch.device('cpu'))
 
 filestore = f"{Path(__file__).parents[0]}/filestore"
 
@@ -33,31 +27,38 @@ async def process_image(request: Request, image_data: ImageData):
     filepath = f"{filestore}/{image_data.paper_id}/molecule_images/{image_data.filename}"
 
     if not Path(filepath).suffix in file_types:
-        return {'status': 'error',
+        response = {'status': 'error',
                 'msg': 'file type not allowed'}
+        print(response)
+        return response
 
     # check file exists
     if not Path(filepath).exists():
-        return {'status': 'error',
+        response = {'status': 'error',
                 'msg': 'file does not exist'}
+        print(response)
+        return response
 
     # run osr
     if image_data.osr_type == 'decimer':
-        smi = predict_SMILES(filepath)
+        smi = decimer_model.predict_SMILES(filepath)
+        response = {'status': 'success',
+                    'smi': smi}
     elif image_data.osr_type == 'molscribe':
-        output = molscribe_model.predict_image_file(filepath, return_atoms_bonds=True, return_confidence=False)
+        output = molscribe_model.predict(filepath)
         smi = output['smiles']
-
+        response = {'status': 'success',
+                    'smi': smi}
     else:
-        return {'status': 'error',
+        response = {'status': 'error',
                 'msg': 'osr type not recognised'}
 
-    return {'status': 'success',
-            'smi': smi}
+    print(response)
+    return response
 
 @app.post("/segment_images_from_file")
 async def decimer_segment(request: Request, image_data: ImageData):
-
+    from decimer_segmentation import segment_chemical_structures_from_file
     file_types = ['.png', '.jpeg', '.PNG', '.JPEG', '.jpg', '.JPG', '.pdf', '.PDF']
 
     filepath = f"{filestore}/{image_data.paper_id}/molecule_images/{image_data.filename}"
@@ -91,7 +92,11 @@ async def decimer_segment(request: Request, image_data: ImageData):
         saved_filepaths.append(shortpath)
 
         if image_data.osr_type == 'decimer':
-            smi = predict_SMILES(fullpath)
+            smi = decimer_model.predict_SMILES(fullpath)
+            smis.append(smi)
+        elif image_data.osr_type == 'molscribe':
+            output = molscribe_model.predict_image_file(filepath, return_atoms_bonds=True, return_confidence=False)
+            smi = output['smiles']
             smis.append(smi)
 
     return {'status': 'success',
@@ -99,4 +104,10 @@ async def decimer_segment(request: Request, image_data: ImageData):
             'smis': smis}
 
 if __name__ == "__main__":
+    # set the PYSTOW_HOME environment variable to the path of the folder where you want to store the models
+    # e.g. export PYSTOW_HOME=/home/user/models
+
+    molscribe_model.molscribe_model_path = "/Users/willfinnigan/Documents/model/modal/MOLSCRIBE/swin_base_char_aux_1m.pth"
+    filestore = f"/Users/willfinnigan/PycharmProjects/retrobiocat/retrobiocat_web/app/database_bps/curation/filestore"
+
     uvicorn.run(app, host="0.0.0.0", port=8080)
