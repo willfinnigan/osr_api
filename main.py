@@ -41,7 +41,7 @@ async def process_image(request: Request, image_data: ImageData):
 
     # run osr
     if image_data.osr_type == 'decimer':
-        smi = decimer_model.predict_SMILES(filepath)
+        smi = decimer_model.predict(filepath)
         response = {'status': 'success',
                     'smi': smi}
     elif image_data.osr_type == 'molscribe':
@@ -92,10 +92,10 @@ async def decimer_segment(request: Request, image_data: ImageData):
         saved_filepaths.append(shortpath)
 
         if image_data.osr_type == 'decimer':
-            smi = decimer_model.predict_SMILES(fullpath)
+            smi = decimer_model.predict(fullpath)
             smis.append(smi)
         elif image_data.osr_type == 'molscribe':
-            output = molscribe_model.predict_image_file(filepath, return_atoms_bonds=True, return_confidence=False)
+            output = molscribe_model.predict(filepath, return_atoms_bonds=True, return_confidence=False)
             smi = output['smiles']
             smis.append(smi)
 
